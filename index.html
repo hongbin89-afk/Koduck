@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2e9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="KODUCK">
+  <meta name="description" content="Bad drawings. Good camera. A live, entirely on-device sketch camera.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; media-src blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f5f2e9'/%3E%3Cpath d='M15 12l-1 40M47 12L16 34l32 19' fill='none' stroke='%231a1a17' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>KODUCK — Bad drawings. Good camera.</title>
+  <style>
+    :root{color-scheme:light;--paper:#f5f2e9;--ink:#1a1a17;--muted:#706e65;--line:#d5d2c8}
+    *{box-sizing:border-box} [hidden]{display:none!important}
+    html{min-height:100%;background:var(--paper)}
+    body{margin:0;color:var(--ink);font-family:Arial,Helvetica,sans-serif;-webkit-tap-highlight-color:transparent}
+    button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+    button:focus-visible,a:focus-visible{outline:3px solid var(--ink);outline-offset:5px}
+    button:disabled{cursor:default;opacity:.3}
+    .app{width:min(100%,500px);margin:auto;padding:max(20px,env(safe-area-inset-top)) 24px max(16px,env(safe-area-inset-bottom));}
+    header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+    h1{font-family:Arial Black,Arial,Helvetica,sans-serif;font-weight:1000;font-size:clamp(34px,9.8vw,48px);letter-spacing:-3px;line-height:.92;margin:0;transform:rotate(-2deg)}
+    .tagline{font-size:10px;font-weight:800;letter-spacing:1.15px;line-height:1.5;white-space:nowrap}
+    .viewfinder{width:min(100%,max(190px,calc((100svh - 292px)*.8)));margin:auto}
+    .view-label{display:flex;justify-content:space-between;gap:8px;margin:0 0 8px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px;font-weight:600;letter-spacing:1.35px;line-height:1.4}
+    .stage{position:relative;isolation:isolate;aspect-ratio:4/5;background:#f8f5ed;border:2px solid var(--ink);border-radius:3px 7px 4px 2px;box-shadow:4px 4px 0 -1px var(--paper),5px 5px 0 0 var(--ink);overflow:hidden}
+    canvas,#photo{display:block;width:100%;height:100%;object-fit:contain}
+    #photo{position:absolute;inset:0;-webkit-touch-callout:default;user-select:auto}
+    #camera{position:fixed;left:-4px;top:0;width:2px;height:2px;opacity:.001;pointer-events:none}
+    .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:25px;background:#f8f5edf5;z-index:2}
+    .face{width:84px;height:92px;margin-bottom:22px;flex-shrink:0}
+    .overlay h2{font-size:21px;line-height:1.08;letter-spacing:-.65px;max-width:260px;margin:0 0 12px;font-weight:900}
+    .overlay p{max-width:270px;font-size:12px;line-height:1.5;margin:0;color:var(--muted)}
+    .start{padding:13px 19px;background:var(--ink);border:0;border-radius:3px 5px 3px 2px;color:var(--paper);font-size:11px;letter-spacing:1.4px;font-weight:800;margin-top:20px}
+    .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
+    .flash.fire{animation:flash .22s ease-out}
+    @keyframes flash{0%{opacity:.9}100%{opacity:0}}
+    .hint{height:30px;margin:12px -12px 0;text-align:center;font-size:11px;line-height:15px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+    fieldset{border:0;padding:0;margin:3px auto 16px;text-align:center;min-width:0}
+    legend{padding:0;margin:0 auto 8px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px;letter-spacing:2px;color:var(--muted)}
+    .skills{display:inline-flex;gap:3px;padding:3px;border:1px solid var(--line);border-radius:5px;}
+    .skills button{background:transparent;border:0;font-size:10px;font-weight:800;letter-spacing:.7px;padding:9px 14px;border-radius:2px}
+    .skills button[aria-pressed="true"]{background:var(--ink);color:var(--paper);transform:rotate(-1.3deg)}
+    fieldset:disabled .skills{opacity:.5}fieldset:disabled button{opacity:1}
+    .controls{display:flex;justify-content:space-between;align-items:center;max-width:320px;margin:0 auto;gap:20px}
+    .side{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:66px;min-height:66px;border:0;background:none;font-size:10px;font-weight:800;letter-spacing:1px}
+    .side svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .shutter{display:grid;place-items:center;width:76px;height:76px;flex-shrink:0;padding:7px;border:2.5px solid var(--ink);background:var(--paper);border-radius:49% 51% 48% 52%;transition:transform .1s}
+    .shutter:active:not(:disabled){transform:scale(.94)}
+    .shutter span{display:grid;place-items:center;width:100%;height:100%;background:var(--ink);border-radius:52% 47% 51% 49%;color:var(--paper)}
+    .shutter svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2}
+    .shutter:disabled{opacity:.25}.shutter.captured:disabled{opacity:1}
+    footer{text-align:center;margin-top:17px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:8px;letter-spacing:.65px;line-height:1.65;color:var(--muted)}
+    .offline{display:block;font-size:8px;letter-spacing:.8px;margin-top:5px;color:#8a877c}
+    @media(min-width:640px){.app{padding-top:30px}header{margin-bottom:22px}}
+    @media(max-height:740px){.app{padding-top:max(13px,env(safe-area-inset-top));padding-bottom:max(10px,env(safe-area-inset-bottom))}header{margin-bottom:13px}h1{font-size:36px}.viewfinder{width:min(100%,max(168px,calc((100svh - 315px)*.8)))}.hint{margin-top:9px;height:27px}fieldset{margin-bottom:10px}.skills button{padding:7px 12px}.shutter{width:66px;height:66px}footer{margin-top:11px}}
+    @media(orientation:landscape) and (max-height:520px){.app{width:min(100%,790px);display:grid;grid-template-columns:1fr 1fr;column-gap:32px;padding:16px 30px}header{grid-column:2;grid-row:1;margin:0;align-self:start}h1{font-size:36px}.tagline{font-size:8px}.viewfinder{grid-column:1;grid-row:1/6;width:min(100%,calc((100svh - 64px)*.8))}.hint{grid-column:2;grid-row:2;margin:8px 0}fieldset{grid-column:2;grid-row:3;margin:4px 0}.controls{grid-column:2;grid-row:4;width:100%;gap:8px}footer{grid-column:2;grid-row:5;margin:9px 0 0}}
+    @media(prefers-reduced-motion:reduce){.flash.fire{animation:none}.shutter{transition:none}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header><h1>KODUCK</h1><div class="tagline">BAD DRAWINGS.<br>GOOD CAMERA.</div></header>
+  <section class="viewfinder" aria-label="Live sketch camera">
+    <div class="view-label"><span id="cameraLabel">BACK CAMERA</span><span id="viewLabel">LIVE SKETCH</span></div>
+    <div class="stage" id="stage">
+      <canvas id="sketch" width="720" height="900" role="img" aria-label="Live black ink sketch of your camera view"></canvas>
+      <img id="photo" alt="Your captured KODUCK sketch. Press and hold to save on iPhone." hidden>
+      <div id="overlay" class="overlay">
+        <svg class="face" viewBox="0 0 84 92" aria-hidden="true"><g fill="none" stroke="#1a1a17" stroke-width="2.3" stroke-linecap="round"><path d="M19 18C3 30 12 61 23 75M27 78c17 9 42-5 44-31 2-19-6-33-24-35M43 12c-9-4-15-2-21 3M28 33l-4 2m30-4 5 1M41 34l-4 19 8 2M28 65q15 9 30-7M23 9l8-4 4 7 9-9 5 10"/><path d="M11 38c-9-9-11 16 2 13m59-12c13-8 12 18-1 14"/></g></svg>
+        <h2 id="overlayTitle">LET’S MAKE<br>THIS WORSE.</h2>
+        <p id="overlayText">Allow the camera. Point it at a face.<br>We’ll do our worst.</p>
+        <button class="start" id="start" type="button">OPEN CAMERA</button>
+      </div>
+      <div id="flash" class="flash" aria-hidden="true"></div>
+    </div>
+  </section>
+  <p class="hint" id="hint" role="status" aria-live="polite">A face. Some light. Very little talent.</p>
+  <fieldset id="skillField"><legend>DRAWING SKILL</legend><div class="skills" role="group" aria-label="Drawing skill">
+    <button type="button" data-skill="bad" aria-pressed="false">BAD</button>
+    <button type="button" data-skill="worse" aria-pressed="true">WORSE</button>
+    <button type="button" data-skill="terrible" aria-pressed="false">TERRIBLE</button>
+  </div></fieldset>
+  <div class="controls">
+    <button type="button" id="flip" class="side" aria-label="Switch front or back camera" disabled>
+      <svg viewBox="0 0 24 24" id="flipIcon" aria-hidden="true"><path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5M4 17a9 9 0 0 0 15 2l3-3m0 5v-5h-5"/></svg>
+      <span id="flipText">FLIP</span>
+    </button>
+    <button type="button" id="shutter" class="shutter" aria-label="Take sketch photo" disabled><span><svg id="capturedTick" viewBox="0 0 24 24" hidden aria-hidden="true"><path d="m5 12 5 5L20 6"/></svg></span></button>
+    <button type="button" id="save" class="side" aria-label="Save captured sketch" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>SAVE</span></button>
+  </div>
+  <footer>PROCESSED LOCALLY.<br>NOTHING LEAVES YOUR CAMERA.<span id="offlineState" class="offline"></span></footer>
+</main>
+<video id="camera" autoplay muted playsinline aria-hidden="true" tabindex="-1"></video>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const video = $('camera'), canvas = $('sketch');
+  const ctx = canvas.getContext('2d', {alpha:false});
+  const input = document.createElement('canvas');
+  const inputCtx = input.getContext('2d', {willReadFrequently:true, alpha:false});
+  const captureCanvas = document.createElement('canvas');
+  const captureCtx = captureCanvas.getContext('2d', {alpha:false});
+  const PAPER = '#f8f5ed', INK = '#111111';
+  // Every imperfection is spatially seeded, never randomised per frame.
+  const MODES = {
+    // Detail survives in all three modes. The pen, not a deletion threshold,
+    // supplies the different levels of incompetence.
+    bad:      {width:352, high:16, min:4, step:2, warp:.18,wobble:.12,gap:0,    double:.04,line:1,angular:false,caption:'BAD · Fine pen. Most of the details.'},
+    worse:    {width:328, high:16, min:4, step:3, warp:1.2,wobble:.65,gap:.035,double:.25,line:1.35,angular:false,caption:'WORSE · Wobbly pen. Shaky confidence.'},
+    terrible: {width:304, high:16, min:4, step:5, warp:2.7,wobble:1.1,gap:.065,double:.42,line:1.95,angular:true,caption:'TERRIBLE · Thick marker. No training.'}
+  };
+  let skill = 'worse', mode = MODES[skill];
+  let stream = null, facing = 'environment', busy = false, ready = false, frozen = false;
+  let requestId = 0, raf = 0, lastFrame = 0, lastVideoTime = -1;
+  let resolution = mode.width, w = 0, h = 0, size = 0;
+  let gray, blurX, fine, blurred, integral, integralSquare, magnitude, direction, thin, edges, seen, queue, trace;
+  let frameCount = 0, costAverage = 18, lowCostFrames = 0;
+  let captureId = 0, imageURL = '', imageFile = null, saving = false;
+  let cameraDevices = [], paused = false, cameraNotice = '';
+  const histogram = new Uint32Array(256);
+  const DX = [-1,0,1,-1,1,-1,0,1], DY = [-1,-1,-1,0,0,1,1,1];
+
+  function allocate(width) {
+    w = width; h = Math.round(w * 1.25); size = w * h;
+    input.width = w; input.height = h;
+    gray = new Float32Array(size); blurX = new Float32Array(size);
+    fine = new Float32Array(size); blurred = new Float32Array(size);
+    integral = new Float64Array((w+1)*(h+1)); integralSquare = new Float64Array((w+1)*(h+1));
+    magnitude = new Float32Array(size);
+    direction = new Uint8Array(size); thin = new Float32Array(size);
+    edges = new Uint8Array(size); seen = new Uint8Array(size);
+    queue = new Int32Array(size); trace = new Int32Array(size);
+  }
+  function noise(x,y) {
+    let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263);
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+  }
+  function controls() {
+    $('shutter').disabled = !ready || frozen || busy;
+    $('shutter').classList.toggle('captured', frozen);
+    $('capturedTick').toggleAttribute('hidden', !frozen);
+    $('flip').disabled = busy || (!ready && !frozen);
+    $('flipText').textContent = frozen ? 'RETAKE' : 'FLIP';
+    $('flip').setAttribute('aria-label', frozen ? 'Retake sketch photo' : 'Switch front or back camera');
+    $('save').disabled = !frozen || !imageFile || saving;
+    $('skillField').disabled = frozen;
+    $('viewLabel').textContent = frozen ? 'A MASTERPIECE.' : 'LIVE SKETCH';
+    $('cameraLabel').textContent = facing === 'user' ? 'FRONT · MIRRORED' : 'BACK CAMERA';
+    canvas.setAttribute('aria-label', frozen ? 'Your captured KODUCK sketch' : 'Live black ink sketch of your camera view');
+  }
+  function say(message) { $('hint').textContent = message; }
+  function overlay(title, message, button) {
+    $('overlayTitle').textContent = title;
+    $('overlayText').textContent = message;
+    $('start').textContent = button || 'OPEN CAMERA';
+    $('start').hidden = !button;
+    $('overlay').hidden = false;
+  }
+  function stopStream() {
+    cancelAnimationFrame(raf); raf = 0; ready = false;
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    stream = null; video.pause(); video.srcObject = null;
+  }
+  function awaitVideo() {
+    if (video.readyState >= 2 && video.videoWidth) return Promise.resolve();
+    return new Promise((resolve,reject) => {
+      let timeout;
+      const cleanup = () => {clearTimeout(timeout); video.removeEventListener('loadeddata',check);video.removeEventListener('canplay',check);};
+      const check = () => {if(video.readyState >= 2 && video.videoWidth){cleanup();resolve();}};
+      video.addEventListener('loadeddata',check); video.addEventListener('canplay',check);
+      timeout = setTimeout(() => {cleanup();reject(new Error('VIDEO_TIMEOUT'));},10000);
+      check();
+    });
+  }
+  async function openStream(target, flip, previousDevice) {
+    const settings = {width:{ideal:960},height:{ideal:720},frameRate:{ideal:30,max:30}};
+    try {
+      return await navigator.mediaDevices.getUserMedia({audio:false,video:{...settings,facingMode:flip?{exact:target}:{ideal:target}}});
+    } catch (error) {
+      if (!['OverconstrainedError','NotFoundError'].includes(error.name)) throw error;
+      if (flip) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const other = devices.filter(d => d.kind === 'videoinput' && d.deviceId !== previousDevice);
+        const match = other.find(d => target === 'user' ? /front|user|facetime/i.test(d.label) : /back|rear|environment/i.test(d.label)) || other[0];
+        if (!match) throw new Error('ONE_CAMERA');
+        return navigator.mediaDevices.getUserMedia({audio:false,video:{...settings,deviceId:{exact:match.deviceId}}});
+      }
+      return navigator.mediaDevices.getUserMedia({audio:false,video:true});
+    }
+  }
+  async function startCamera(target = facing, flip = false) {
+    if (busy || frozen || document.hidden) return;
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      overlay('CAMERA NEEDS A SAFE ADDRESS.', location.protocol === 'file:' ? 'On a laptop, open this file in Chrome. On iPhone, open the HTTPS version in Safari.' : 'Open KODUCK using HTTPS, or localhost on your laptop.', null);
+      say('Your browser has not made the camera available.'); return;
+    }
+    const oldFacing = facing, oldDevice = stream?.getVideoTracks()[0]?.getSettings?.().deviceId;
+    const ticket = ++requestId;
+    busy = true; paused = false; stopStream(); controls();
+    overlay(flip ? 'CHANGING SIDES.' : 'LET’S MAKE THIS WORSE.', 'Allow camera access when your browser asks.', null);
+    let candidate = null, restored = false;
+    cameraNotice = '';
+    try {
+      // Releasing the old track before requesting the other lens is essential on iOS.
+      if (flip) await new Promise(resolve => setTimeout(resolve,120));
+      try { candidate = await openStream(target, flip, oldDevice); }
+      catch (error) {
+        if (!flip || error.name === 'NotAllowedError') throw error;
+        candidate = await openStream(oldFacing, false);
+        restored = true;
+        cameraNotice = error.message === 'ONE_CAMERA' ? 'Only one camera is available on this device.' : 'Couldn’t switch cameras. Your previous camera is back.';
+      }
+      if (ticket !== requestId || document.hidden) {candidate.getTracks().forEach(t=>t.stop());return;}
+      stream = candidate;
+      const track = stream.getVideoTracks()[0], settings = track.getSettings?.() || {};
+      const desired = restored ? oldFacing : target;
+      facing = settings.facingMode === 'user' || settings.facingMode === 'environment' ? settings.facingMode : /front|facetime|integrated|built.?in|webcam/i.test(track.label) && !/back|rear/i.test(track.label) ? 'user' : desired;
+      video.srcObject = stream; video.muted = true;
+      track.addEventListener('ended', () => {
+        if (stream === candidate && !frozen && !document.hidden) {
+          ++requestId; busy = false; stopStream(); controls();
+          overlay('CAMERA TOOK A BREAK.', 'Tap below to bring it back.', 'RESUME CAMERA');
+        }
+      });
+      await video.play(); await awaitVideo();
+      if (ticket !== requestId) return;
+      ready = true; $('overlay').hidden = true;
+      lastFrame = 0; lastVideoTime = -1; frameCount = 0;
+      drawFrame();
+      raf = requestAnimationFrame(tick);
+      say(cameraNotice || 'A face. Some light. Very little talent.');
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        cameraDevices = devices.filter(d => d.kind === 'videoinput');
+      }).catch(() => {});
+    } catch (error) {
+      if (ticket !== requestId) return;
+      stopStream();
+      const messages = {
+        NotAllowedError:['CAMERA PERMISSION NEEDED.', 'Allow camera access in your browser’s site settings, then try again.'],
+        NotFoundError:['NO CAMERA FOUND.', 'Connect or enable a camera, then try again.'],
+        NotReadableError:['CAMERA IS BUSY.', 'Close another app or tab using the camera, then try again.'],
+        SecurityError:['CAMERA IS BLOCKED.', 'Open KODUCK directly in Chrome or Safari and allow camera access.']
+      };
+      const [title,message] = messages[error.name] || ['CAMERA NEEDS ANOTHER TRY.', 'Tap below to restart it. If needed, close another app using your camera.'];
+      overlay(title,message,'TRY AGAIN');
+      say('No photo has been taken.');
+    } finally {
+      if (ticket === requestId) {busy = false; controls();}
+    }
+  }
+
+  // Fine + coarse edges, with local contrast compensation, preserve small
+  // eyes/lips/nostrils in soft light without any face model. The intermediate
+  // luminance buffers are never rendered: the output is black strokes on paper.
+  // Neither the input frame nor a normal photograph is persisted anywhere.
+  function detectEdges(data) {
+    histogram.fill(0);
+    for (let p=0,i=0;p<size;p++,i+=4) {
+      const value = (data[i]*77 + data[i+1]*150 + data[i+2]*29) / 256;
+      gray[p] = value; histogram[value|0]++;
+    }
+    let total=0, lo=0, hi=255;
+    for(let i=0;i<256;i++){total+=histogram[i];if(total>size*.06){lo=i;break;}}
+    total=0;
+    for(let i=255;i>=0;i--){total+=histogram[i];if(total>size*.06){hi=i;break;}}
+    const gain = Math.min(2.1, Math.max(.9, 180 / Math.max(40,hi-lo)));
+    // A light three-tap blur keeps small features. A second pass supplies a
+    // steadier coarse contour, rather than using heavy blur for every detail.
+    for(let y=0;y<h;y++){
+      const row=y*w;
+      for(let x=0;x<w;x++){
+        blurX[row+x]=(gray[row+Math.max(0,x-1)]+2*gray[row+x]+gray[row+Math.min(w-1,x+1)])/4;
+      }
+    }
+    for(let y=0;y<h;y++){
+      const a=Math.max(0,y-1)*w,b=y*w,c=Math.min(h-1,y+1)*w;
+      for(let x=0;x<w;x++)fine[b+x]=(blurX[a+x]+2*blurX[b+x]+blurX[c+x])/4;
+    }
+    histogram.fill(0);
+    const stride=w+1;
+    integral.fill(0);integralSquare.fill(0);
+    for(let y=0;y<h;y++){
+      const row=y*w,prev=y*stride,next=(y+1)*stride;
+      let sum=0,square=0;
+      for(let x=0;x<w;x++){
+        const i=row+x,v=fine[i];
+        blurX[i]=(fine[row+Math.max(0,x-1)]+2*v+fine[row+Math.min(w-1,x+1)])/4;
+        sum+=v;square+=v*v;
+        integral[next+x+1]=integral[prev+x+1]+sum;
+        integralSquare[next+x+1]=integralSquare[prev+x+1]+square;
+        histogram[Math.min(255,Math.round(Math.abs(gray[i]-v)*4))]++;
+      }
+    }
+    let noiseMedian=0;total=0;
+    for(let i=0;i<256;i++){total+=histogram[i];if(total>size*.5){noiseMedian=i/4;break;}}
+    for(let y=0;y<h;y++){
+      const a=Math.max(0,y-1)*w,b=y*w,c=Math.min(h-1,y+1)*w;
+      for(let x=0;x<w;x++)blurred[b+x]=(blurX[a+x]+2*blurX[b+x]+blurX[c+x])/4;
+    }
+    magnitude.fill(0); thin.fill(0); edges.fill(0); seen.fill(0);
+    const radius=Math.max(7,Math.round(w/32));
+    for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+      const i=y*w+x;
+      const fx=fine[i-w+1]+2*fine[i+1]+fine[i+w+1]-fine[i-w-1]-2*fine[i-1]-fine[i+w-1];
+      const fy=fine[i+w-1]+2*fine[i+w]+fine[i+w+1]-fine[i-w-1]-2*fine[i-w]-fine[i-w+1];
+      const cx=blurred[i-w+1]+2*blurred[i+1]+blurred[i+w+1]-blurred[i-w-1]-2*blurred[i-1]-blurred[i+w-1];
+      const cy=blurred[i+w-1]+2*blurred[i+w]+blurred[i+w+1]-blurred[i-w-1]-2*blurred[i-w]-blurred[i-w+1];
+      const left=Math.max(0,x-radius),right=Math.min(w,x+radius+1),top=Math.max(0,y-radius),bottom=Math.min(h,y+radius+1);
+      const a=top*stride+left,b=top*stride+right,c=bottom*stride+left,d=bottom*stride+right,area=(right-left)*(bottom-top);
+      const mean=(integral[d]-integral[b]-integral[c]+integral[a])/area;
+      const variance=Math.max(0,(integralSquare[d]-integralSquare[b]-integralSquare[c]+integralSquare[a])/area-mean*mean);
+      const localGain=Math.max(.9,Math.min(1.85,24/(Math.sqrt(variance)+12)));
+      const gx=fx*.4+cx*.6,gy=fy*.4+cy*.6;
+      const ax=Math.abs(gx),ay=Math.abs(gy),m=(ax+ay)*gain*localGain/4;
+      magnitude[i]=m;
+      direction[i]=ay<ax*.4142?0:ay>ax*2.4142?2:gx*gy>0?1:3;
+    }
+    // Noise changes the threshold; the selected drawing style does not delete
+    // facial details. Short coherent contours are kept, including small loops.
+    const high=mode.high+Math.min(9,noiseMedian*1.6*gain)*.55;
+    const low=high*.4;
+    const offsets=[1,w+1,w,w-1];
+    for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+      const i=y*w+x,m=magnitude[i],off=offsets[direction[i]];
+      if(m>=low && m>=magnitude[i-off] && m>magnitude[i+off]) thin[i]=m;
+    }
+    // Only keep connected contours which contain a strong edge.
+    for(let i=2*w;i<size-2*w;i++){
+      if(seen[i] || thin[i]<high)continue;
+      let head=0,tail=1; queue[0]=i; seen[i]=1;
+      while(head<tail){
+        const at=queue[head++];
+        for(let k=0;k<8;k++){
+          const n=at+DY[k]*w+DX[k];
+          if(!seen[n] && thin[n]>=low){seen[n]=1;queue[tail++]=n;}
+        }
+      }
+      if(tail>=mode.min)for(let j=0;j<tail;j++)edges[queue[j]]=1;
+    }
+  }
+  function displaced(index) {
+    const x=index%w,y=(index/w)|0;
+    const nx=noise((x/5)|0,(y/5)|0)-.5;
+    const ny=noise(((x+73)/5)|0,((y+29)/5)|0)-.5;
+    return [x+mode.warp*(Math.sin(y*.071)+.43*Math.sin(x*.043))+nx*mode.wobble,
+      y+mode.warp*(.64*Math.sin(x*.065)+.3*Math.sin(y*.09))+ny*mode.wobble];
+  }
+  function strokePath(points,start,end,ox=0,oy=0) {
+    if(end-start<2)return;
+    ctx.beginPath(); ctx.moveTo(points[start][0]+ox,points[start][1]+oy);
+    for(let j=start+1;j<end-1;j++){
+      const p=points[j],n=points[j+1];
+      if(mode.angular)ctx.lineTo(p[0]+ox,p[1]+oy);
+      else ctx.quadraticCurveTo(p[0]+ox,p[1]+oy,(p[0]+n[0])/2+ox,(p[1]+n[1])/2+oy);
+    }
+    const last=points[end-1];ctx.lineTo(last[0]+ox,last[1]+oy);ctx.stroke();
+  }
+  function traceStroke(first) {
+    let current=first,length=0,px=0,py=0;
+    while(current>=0 && length<size){
+      trace[length++]=current;edges[current]=0;
+      let best=-1,score=-Infinity,nx=0,ny=0;
+      for(let k=0;k<8;k++){
+        const n=current+DY[k]*w+DX[k];
+        if(!edges[n])continue;
+        const diagonal=DX[k]!==0 && DY[k]!==0;
+        const s=(px*DX[k]+py*DY[k])/(diagonal?1.4142:1)+magnitude[n]*.002-(diagonal?.08:0);
+        if(s>score){score=s;best=n;nx=DX[k];ny=DY[k];}
+      }
+      current=best;px=nx;py=ny;
+    }
+    if(length<3)return;
+    const points=[];
+    const step=length<18?1:length<40?2:mode.step;
+    for(let i=0;i<length;i+=step)points.push(displaced(trace[i]));
+    if((length-1)%step)points.push(displaced(trace[length-1]));
+    const dx=(trace[0]%w)-(trace[length-1]%w),dy=((trace[0]/w)|0)-((trace[length-1]/w)|0);
+    const closed=length>5 && dx*dx+dy*dy<=2;
+    if(closed)points.push(points[0]);
+    const middle=trace[(length/2)|0], seed=noise(((middle%w)/9)|0,((middle/w/9)|0));
+    // Small loops and short feature lines stay legible even with the marker.
+    ctx.lineWidth=(length<24?Math.min(mode.line,1.22):mode.line)*(.82+seed*.42);ctx.globalAlpha=1;
+    let start=0;
+    for(let i=4;i<points.length-2;i++){
+      const p=points[i];
+      if(length>40 && !closed && i-start>=4 && noise((p[0]/4)|0,((p[1]+137)/4)|0)<mode.gap){
+        strokePath(points,start,i);start=i+1;
+      }
+    }
+    strokePath(points,start,points.length);
+    if(length>32 && seed<mode.double){
+      ctx.lineWidth=mode.line*.48;ctx.globalAlpha=1;
+      const end=Math.max(3,Math.floor(points.length*.75));
+      strokePath(points,1,end,1.1+seed*2.5,mode.warp*.65);
+    }
+  }
+  function renderStrokes() {
+    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;
+    ctx.fillStyle=PAPER;ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.save();ctx.scale(canvas.width/w,canvas.height/h);
+    ctx.strokeStyle=INK;ctx.lineCap='round';ctx.lineJoin='round';
+    // Endpoints first; the second pass collects loops and junction branches.
+    for(let i=2*w;i<size-2*w;i++)if(edges[i]){
+      let neighbors=0;
+      for(let k=0;k<8;k++)neighbors+=edges[i+DY[k]*w+DX[k]];
+      if(neighbors<=1)traceStroke(i);
+    }
+    for(let i=2*w;i<size-2*w;i++)if(edges[i])traceStroke(i);
+    ctx.restore();ctx.globalAlpha=1;
+    // Keep the small signature readable, even on a busy background.
+    ctx.fillStyle=PAPER;ctx.fillRect(canvas.width-100,canvas.height-39,89,29);
+    ctx.fillStyle=INK;ctx.font='900 17px Arial, sans-serif';ctx.textAlign='right';
+    ctx.fillText('KODUCK',canvas.width-18,canvas.height-19);
+  }
+  function drawFrame() {
+    if(!video.videoWidth || video.readyState<2)return;
+    if(w!==resolution)allocate(resolution);
+    const vw=video.videoWidth,vh=video.videoHeight,aspect=w/h;
+    const sw=Math.min(vw,vh*aspect),sh=sw/aspect;
+    inputCtx.setTransform(1,0,0,1,0,0);
+    inputCtx.save();
+    if(facing==='user'){inputCtx.translate(w,0);inputCtx.scale(-1,1);}
+    inputCtx.drawImage(video,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);
+    inputCtx.restore();
+    detectEdges(inputCtx.getImageData(0,0,w,h).data);renderStrokes();
+  }
+  function tick(now) {
+    if(!ready || frozen || document.hidden)return;
+    raf=requestAnimationFrame(tick);
+    if(now-lastFrame<1000/26 || video.currentTime===lastVideoTime)return;
+    lastFrame=now;lastVideoTime=video.currentTime;
+    const start=performance.now();
+    try{drawFrame();}
+    catch(error){
+      ++requestId;busy=false;stopStream();controls();
+      overlay('THE PEN SLIPPED.', 'Tap below to restart the camera.', 'TRY AGAIN');return;
+    }
+    costAverage=costAverage*.94+(performance.now()-start)*.06;frameCount++;
+    if(frameCount>40 && costAverage>31 && resolution>224){
+      resolution=Math.max(224,resolution-24);frameCount=0;lowCostFrames=0;
+    }else if(costAverage<13 && resolution<mode.width){
+      if(++lowCostFrames>140){resolution=Math.min(mode.width,resolution+16);lowCostFrames=0;frameCount=0;}
+    }else lowCostFrames=0;
+  }
+  function clearCapture() {
+    ++captureId;imageFile=null;
+    $('photo').hidden=true;$('photo').removeAttribute('src');
+    if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';
+  }
+  function capture() {
+    if(!ready || frozen || busy)return;
+    frozen=true;const ticket=++captureId;
+    // Copy the displayed sketch exactly: same crop, same mirrored front camera.
+    captureCanvas.width=canvas.width;captureCanvas.height=canvas.height;
+    captureCtx.drawImage(canvas,0,0);
+    stopStream();controls();
+    $('flash').classList.remove('fire');void $('flash').offsetWidth;$('flash').classList.add('fire');
+    say('Your masterpiece. SAVE or RETAKE.');
+    const stamp=new Date().toISOString().replace(/[-:]/g,'').replace('T','_').slice(0,15);
+    captureCanvas.toBlob(blob => {
+      if(ticket!==captureId || !frozen)return;
+      if(!blob){say('Couldn’t prepare that photo. Please retake it.');return;}
+      imageFile=new File([blob],`KODUCK_${stamp}.png`,{type:'image/png'});
+      imageURL=URL.createObjectURL(blob);$('photo').src=imageURL;$('photo').hidden=false;controls();
+    },'image/png');
+  }
+  async function save() {
+    if(!imageFile || !frozen || saving)return;
+    const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    // File prepared at capture time, so native saving retains this tap's activation.
+    if(isiOS && navigator.share && navigator.canShare?.({files:[imageFile]})){
+      saving=true;controls();
+      try{await navigator.share({files:[imageFile]});say('Your sketch is ready. Fancy another?');}
+      catch(error){
+        if(error.name==='AbortError')say('Your sketch is still here.');
+        else say('Press and hold the sketch, then choose Save Image.');
+      }finally{saving=false;controls();}
+      return;
+    }
+    const a=document.createElement('a');a.href=imageURL;a.download=imageFile.name;
+    document.body.appendChild(a);a.click();a.remove();
+    say(isiOS ? 'You can also press and hold the sketch to save it.' : 'PNG downloaded. That belongs in a museum.');
+  }
+  $('shutter').addEventListener('click',capture);
+  $('save').addEventListener('click',save);
+  $('start').addEventListener('click',()=>startCamera());
+  $('flip').addEventListener('click',()=>{
+    if(frozen){frozen=false;clearCapture();controls();startCamera();return;}
+    if(busy || !ready)return;
+    if(cameraDevices.length===1){say('Only one camera is available on this device.');return;}
+    startCamera(facing==='user'?'environment':'user',true);
+  });
+  document.querySelectorAll('[data-skill]').forEach(button=>button.addEventListener('click',()=>{
+    const qualityRatio=resolution/mode.width;
+    skill=button.dataset.skill;mode=MODES[skill];resolution=Math.max(224,Math.round(mode.width*qualityRatio/8)*8);
+    frameCount=0;lowCostFrames=0;
+    document.querySelectorAll('[data-skill]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    say(mode.caption);
+    if(ready && !frozen)drawFrame();
+  }));
+  function suspend() {
+    if(frozen)return;
+    paused=true;++requestId;busy=false;stopStream();controls();
+    overlay('CAMERA TAKING A BREAK.', 'Tap to make another bad drawing.', 'RESUME CAMERA');
+  }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)suspend();
+    else if(paused && !frozen)startCamera();
+  });
+  window.addEventListener('pagehide',suspend);
+  window.addEventListener('pageshow',event=>{if(event.persisted && !frozen)startCamera();});
+  async function offline() {
+    if(!/^https?:$/.test(location.protocol)){$('offlineState').textContent='OFFLINE FILE · LAPTOP EDITION';return;}
+    const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='./manifest.webmanifest';document.head.appendChild(manifest);
+    const icon=document.createElement('link');icon.rel='apple-touch-icon';icon.href='./icon-192.png';document.head.appendChild(icon);
+    if(!('serviceWorker' in navigator) || !window.isSecureContext){$('offlineState').textContent='HTTPS NEEDED FOR OFFLINE INSTALL';return;}
+    $('offlineState').textContent='PREPARING OFFLINE CAMERA…';
+    try{
+      await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+      await navigator.serviceWorker.ready;
+      $('offlineState').textContent='OFFLINE READY';
+    }catch(error){$('offlineState').textContent='OFFLINE SETUP FAILED · REOPEN ONLINE';}
+  }
+  ctx.fillStyle=PAPER;ctx.fillRect(0,0,canvas.width,canvas.height);
+  allocate(resolution);controls();offline();startCamera();
+})();
+</script>
+</body>
+</html>
